@@ -78,6 +78,16 @@ def opts_parser():
                  'settings from --vars options. Can be given multiple times.')
     return parser
 
+def get_state(network, updates):
+    return ([p.get_value() for p in updates.keys()] +
+            lasagne.layers.get_all_param_values(network, trainable=False))
+
+def restore_state(network, updates, state):
+    for p, s in zip(updates.keys(), state):
+        p.set_value(s)
+    lasagne.layers.set_all_param_values(
+            network, state[len(updates):], trainable=False)
+
 def main():
     # parse command line
     parser = opts_parser()
@@ -253,6 +263,8 @@ def main():
     initial_eta = cfg['initial_eta']
     eta_decay = cfg['eta_decay']
     eta_decay_every = cfg.get('eta_decay_every', 1)
+    patience = cfg.get('patience', 0)
+    trials_of_patience = cfg.get('trials_of_patience', 1)
     momentum = cfg['momentum']
     first_params = params[:cfg['first_params']]
     first_params_eta_scale = cfg['first_params_eta_scale']
@@ -299,6 +311,9 @@ def main():
         errors = []
     if first_params and cfg['first_params_log']:
         first_params_hist = []
+    if patience > 0:
+        best_error = np.inf
+        best_state = get_state(network, updates)
     for epoch in range(epochs):
         # actual training
         err = 0
@@ -315,8 +330,6 @@ def main():
                 np.savez(modelfile[:-4] + '.hist.npz',
                          **{'param%d' % i: param
                             for i, param in enumerate(zip(*first_params_hist))})
-        if eta_decay != 1 and (epoch + 1) % eta_decay_every == 0:
-            eta.set_value(eta.get_value() * lasagne.utils.floatX(eta_decay))
 
         # report training loss
         print("Train loss: %.3f" % (err / epochsize))
@@ -347,6 +360,31 @@ def main():
                 errors.append(val_err / len(filelist_val))
                 errors.append(1 - results['accuracy'])
 
+        # update learning rate and/or apply early stopping, if needed
+        if patience > 0:
+            if options.validate:
+                cur_error = val_err / len(filelist_val)
+            else:
+                cur_error = err / epochsize
+            if cur_error <= best_error:
+                best_error = cur_error
+                best_state = get_state(network, updates)
+                patience = cfg['patience']
+            else:
+                patience -= 1
+                if patience == 0:
+                    if eta_decay_every == 'trial_of_patience' and eta_decay != 1:
+                        eta.set_value(eta.get_value() * lasagne.utils.floatX(eta_decay))
+                    restore_state(network, updates, best_state)
+                    patience = cfg['patience']
+                    trials_of_patience -= 1
+                    print("Lost patience (%d remaining trials)." % trials_of_patience)
+                    if trials_of_patience == 0:
+                        break
+        if eta_decay_every != 'trial_of_patience' and eta_decay != 1 and \
+                (epoch + 1) % eta_decay_every == 0:
+            eta.set_value(eta.get_value() * lasagne.utils.floatX(eta_decay))
+
     # save final network
     print("Saving final model")
     np.savez(modelfile, **{'param%d' % i: p for i, p in enumerate(
@@ -355,7 +393,7 @@ def main():
         f.writelines('%s=%s\n' % kv for kv in cfg.items())
     if options.save_errors:
         np.savez(modelfile[:-len('.npz')] + '.err.npz',
-                 np.asarray(errors).reshape(epochs, -1))
+                 np.asarray(errors).reshape(epoch + 1, -1))
 
 if __name__=="__main__":
     main()
