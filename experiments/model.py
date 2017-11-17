@@ -138,23 +138,24 @@ def architecture(input_var, input_shape, cfg):
         maybe_dropout = lambda x: x
     else:
         raise ValueError("Unknown arch.convdrop=%s" % cfg['arch.convdrop'])
-    layer = Conv2DLayer(layer, 64, 3, **kwargs)
+    convmore = cfg['arch.convmore']
+    layer = Conv2DLayer(layer, int(64 * convmore), 3, **kwargs)
     layer = maybe_batch_norm(layer)
     layer = maybe_dropout(layer)
-    layer = Conv2DLayer(layer, 32, 3, **kwargs)
+    layer = Conv2DLayer(layer, int(32 * convmore), 3, **kwargs)
     layer = maybe_batch_norm(layer)
     layer = MaxPool2DLayer(layer, 3)
     layer = maybe_dropout(layer)
-    layer = Conv2DLayer(layer, 128, 3, **kwargs)
+    layer = Conv2DLayer(layer, int(128 * convmore), 3, **kwargs)
     layer = maybe_batch_norm(layer)
     layer = maybe_dropout(layer)
-    layer = Conv2DLayer(layer, 64, 3, **kwargs)
+    layer = Conv2DLayer(layer, int(64 * convmore), 3, **kwargs)
     layer = maybe_batch_norm(layer)
     if cfg['arch'] == 'ismir2015':
         layer = MaxPool2DLayer(layer, 3)
     elif cfg['arch'] == 'ismir2016':
         layer = maybe_dropout(layer)
-        layer = Conv2DLayer(layer, 128, (3, layer.output_shape[3] - 3), **kwargs)
+        layer = Conv2DLayer(layer, int(128 * convmore), (3, layer.output_shape[3] - 3), **kwargs)
         layer = maybe_batch_norm(layer)
         layer = MaxPool2DLayer(layer, (1, 4))
     else:
