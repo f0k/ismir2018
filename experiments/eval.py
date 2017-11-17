@@ -33,6 +33,9 @@ def opts_parser():
     parser.add_argument('--dataset',
             type=str, default='jamendo',
             help='Name of the dataset to use (default: %(default)s)')
+    parser.add_argument('--test-list', metavar='FILENAME',
+            type=str, default='test',
+            help='Name of the test file list (default: %(default)s)')
     parser.add_argument('--threshold',
             type=float, default=None,
             help='If given, use this threshold instead of optimizing it on '
@@ -150,7 +153,7 @@ def main():
                            os.path.pardir, 'datasets', options.dataset)
     with io.open(os.path.join(datadir, 'filelists', 'valid')) as f:
         filelist_valid = [l.rstrip() for l in f if l.rstrip()]
-    with io.open(os.path.join(datadir, 'filelists', 'test')) as f:
+    with io.open(os.path.join(datadir, 'filelists', options.test_list)) as f:
         filelist_test = [l.rstrip() for l in f if l.rstrip()]
     filelist_all = filelist_valid + filelist_test
 
