@@ -124,10 +124,10 @@ def main():
                            os.path.pardir, 'datasets', options.dataset)
 
     # - load filelist
-    with io.open(os.path.join(datadir, 'filelists', 'train')) as f:
+    with io.open(os.path.join(datadir, 'filelists', cfg.get('filelist.train', 'train'))) as f:
         filelist = [l.rstrip() for l in f if l.rstrip()]
     if options.validate:
-        with io.open(os.path.join(datadir, 'filelists', 'valid')) as f:
+        with io.open(os.path.join(datadir, 'filelists', cfg.get('filelist.valid', 'valid'))) as f:
             filelist_val = [l.rstrip() for l in f if l.rstrip()]
         filelist.extend(filelist_val)
     else:
