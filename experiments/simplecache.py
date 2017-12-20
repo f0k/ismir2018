@@ -73,6 +73,9 @@ def cached(filename, func, *args, **kwargs):
     else:
         result = func(*args, **kwargs)
         if filename:
+            dirname = os.path.dirname(filename)
+            if dirname and not os.path.exists(dirname):
+                os.makedirs(dirname)
             np.save(filename, result)
             if loading_mode == 'memmap':
                 return np.load(filename, mmap_mode='r')
