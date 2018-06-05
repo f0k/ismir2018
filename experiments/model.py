@@ -149,6 +149,8 @@ def architecture(input_var, input_shape, cfg):
     # standardization per frequency band
     if cfg.get('input_norm', 'batch') == 'batch':
         layer = batch_norm_vanilla(layer, axes=(0, 2), beta=None, gamma=None)
+    elif cfg['input_norm'] == 'instance':
+        layer = lasagne.layers.StandardizationLayer(layer, axes=2)
     elif cfg['input_norm'] == 'none':
         pass
     else:
