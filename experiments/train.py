@@ -348,9 +348,9 @@ def main():
         if options.validate:
             val_err = 0
             preds = []
-            max_len = fps * 30
+            max_len = int(fps * cfg.get('val.max_len', 30))
             for spect, label in zip(spects_val, labels_val):
-                # pick excerpt of 30 seconds in center of file
+                # pick excerpt of val.max_len seconds in center of file
                 excerpt = slice(max(0, (len(spect) - max_len) // 2),
                                 (len(spect) + max_len) // 2)
                 # crop to maximum length and required spectral bins
