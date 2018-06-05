@@ -50,6 +50,10 @@ def opts_parser():
             type=float, default=0.0,
             help='Perform test-time pitch-shifting of given amount and '
                  'direction in percent (e.g., -10 shifts down by 10%%).')
+    parser.add_argument('--loudness', metavar='DB',
+            type=float, default=0.0,
+            help='Perform test-time loudness adjustment of given amount and '
+                 'direction in decibel (e.g., -3 decreases volume by 3dB).')
     parser.add_argument('--mem-use',
             type=str, choices=('high', 'mid', 'low'), default='mid',
             help='How much main memory to use. More memory allows a faster '
@@ -134,6 +138,11 @@ def main():
 
     # - define generator for cropped spectra
     spects = (spect[:, :bin_mel_max] for spect in spects)
+
+    # - adjust loudness if needed
+    if options.loudness:
+        spects = (spect * float(10.**(options.loudness / 10.))
+                  for spect in spects)
 
     # - define generator for silence-padding
     pad = np.zeros((blocklen // 2, bin_mel_max), dtype=floatX)
