@@ -182,4 +182,3 @@ def model_to_fcn(output_layers, allow_unlink=False):
         return [converted[layer] for layer in output_layers]
     except TypeError:
         return converted[output_layers]
-
