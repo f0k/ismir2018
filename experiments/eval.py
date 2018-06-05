@@ -50,6 +50,10 @@ def opts_parser():
     parser.add_argument('--smooth-method', metavar='METHOD',
             type=str, choices=('median', 'mean'), default='median',
             help='Temporal smoothing method (default: %(default)s)')
+    parser.add_argument('--save-rawdata', metavar='FILENAME',
+            type=str, default=None,
+            help='If given, save raw TP/FP/TN/FN counts per filelist and '
+                 'file as a matrix in .npy format.')
     return parser
 
 def load_labels(filelist, predictions, fps, datadir):
@@ -65,7 +69,8 @@ def load_labels(filelist, predictions, fps, datadir):
     return labels
 
 def evaluate(predictions, truth, threshold=None, smoothen=56,
-        smooth_fn='median', collapse_files=True, compute_auroc=False):
+        smooth_fn='median', collapse_files=True, compute_auroc=False,
+        save_rawdata=None):
     assert len(predictions) == len(truth)
 
     # preprocess network outputs
@@ -105,6 +110,8 @@ def evaluate(predictions, truth, threshold=None, smoothen=56,
         fp[idx] = (incorrect * preds).sum(axis=1)
         tn[idx] = (correct * nopreds).sum(axis=1)
         fn[idx] = (incorrect * nopreds).sum(axis=1)
+    if save_rawdata:
+        np.save(save_rawdata, np.squeeze(np.stack((tp, fp, tn, fn)).transpose(1, 2, 0)))
     if collapse_files:
         # treat all files as a single long file, rather than
         # averaging over file-wise results afterwards
@@ -172,14 +179,16 @@ def main():
         options.threshold, _ = evaluate(
                 [preds[fn].ravel() for fn in filelist_valid],
                 load_labels(filelist_valid, preds, fps, datadir),
-                smoothen=options.smooth_width, smooth_fn=options.smooth_method)
+                smoothen=options.smooth_width, smooth_fn=options.smooth_method,
+                save_rawdata=options.save_rawdata and (options.save_rawdata[:-3] + 'valid.npy'))
     
     # evaluate on test set
     threshold, results = evaluate(
                 [preds[fn].ravel() for fn in filelist_test],
                 load_labels(filelist_test, preds, fps, datadir),
                 smoothen=options.smooth_width, smooth_fn=options.smooth_method,
-                threshold=options.threshold, compute_auroc=options.auroc)
+                threshold=options.threshold, compute_auroc=options.auroc,
+                save_rawdata=options.save_rawdata and (options.save_rawdata[:-3] + options.test_list + '.npy'))
 
     # print results
     if sys.stdout.isatty():
