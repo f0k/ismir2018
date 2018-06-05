@@ -118,11 +118,24 @@ def architecture(input_var, input_shape, cfg):
         a = float(cfg['magscale'][len('pow_learn'):] or 0)
         a = T.nnet.sigmoid(theano.shared(lasagne.utils.floatX(a)))
         layer = PowLayer(layer, exponent=a)
+    elif cfg['magscale'] == 'loudness_only':
+        # cut away half a block length on the left and right
+        layer = lasagne.layers.SliceLayer(
+                layer, slice(cfg['blocklen']//2, -(cfg['blocklen']//2)), axis=2)
+        # average over the frequencies and channels
+        layer = lasagne.layers.ExpressionLayer(
+                layer, lambda X: X.mean(axis=(1, 3), keepdims=True),
+                lambda shp: (shp[0], 1, shp[2], 1))
     elif cfg['magscale'] != 'none':
         raise ValueError("Unknown magscale=%s" % cfg['magscale'])
 
     # standardization per frequency band
-    layer = batch_norm_vanilla(layer, axes=(0, 2), beta=None, gamma=None)
+    if cfg.get('input_norm', 'batch') == 'batch':
+        layer = batch_norm_vanilla(layer, axes=(0, 2), beta=None, gamma=None)
+    elif cfg['input_norm'] == 'none':
+        pass
+    else:
+        raise ValueError("Unknown input_norm=%s" % cfg['input_norm'])
 
     # convolutional neural network
     kwargs = dict(nonlinearity=lasagne.nonlinearities.leaky_rectify,
@@ -138,6 +151,12 @@ def architecture(input_var, input_shape, cfg):
         maybe_dropout = lambda x: x
     else:
         raise ValueError("Unknown arch.convdrop=%s" % cfg['arch.convdrop'])
+    if cfg['arch'] == 'dense:16':
+        layer = DenseLayer(layer, 16, **kwargs)
+        layer = DenseLayer(layer, 1,
+                           nonlinearity=lasagne.nonlinearities.sigmoid,
+                           W=lasagne.init.Orthogonal())
+        return layer
     convmore = cfg['arch.convmore']
     layer = Conv2DLayer(layer, int(64 * convmore), 3, **kwargs)
     layer = maybe_batch_norm(layer)
