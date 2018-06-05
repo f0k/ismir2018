@@ -217,6 +217,8 @@ def architecture(input_var, input_shape, cfg):
         return layer
     convmore = cfg['arch.convmore']
     layer = Conv2DLayer(layer, int(64 * convmore), 3, **kwargs)
+    if cfg.get('arch.firstconv_zeromean', False) == 'params':
+        layer.W = layer.W - T.mean(layer.W, axis=(2, 3), keepdims=True)
     layer = maybe_batch_norm(layer)
     layer = maybe_dropout(layer)
     layer = Conv2DLayer(layer, int(32 * convmore), 3, **kwargs)
