@@ -158,7 +158,7 @@ def apply_logarithm(batches):
 
 def apply_random_filters(batches, max_freq, max_db, min_std=5, max_std=7):
     """
-    Applies random filter responses to logarithmic-magnitude mel spectrograms.
+    Applies random filter responses to linear-magnitude mel spectrograms.
     The filter response is a Gaussian of a standard deviation between `min_std`
     and `max_std` semitones, a mean between 150 Hz and `max_freq`, and a
     strength between -/+ `max_db` dezibel. Assumes the spectrograms cover up to
