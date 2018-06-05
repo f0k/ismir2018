@@ -82,6 +82,19 @@ class PowLayer(lasagne.layers.Layer):
         return input ** self.exponent
 
 
+class TimeDiffLayer(lasagne.layers.Layer):
+    def __init__(self, incoming, delta=1, **kwargs):
+        super(TimeDiffLayer, self).__init__(incoming, **kwargs)
+        self.delta = delta
+    def get_output_shape_for(self, input_shape):
+        output_shape = list(input_shape)
+        if input_shape[2] is not None:
+            output_shape[2] -= self.delta
+        return tuple(output_shape)
+    def get_output_for(self, input, **kwargs):
+        return input[:, :, self.delta:] - input[:, :, :-self.delta]
+
+
 def architecture(input_var, input_shape, cfg):
     layer = InputLayer(input_shape, input_var)
 
@@ -128,6 +141,10 @@ def architecture(input_var, input_shape, cfg):
                 lambda shp: (shp[0], 1, shp[2], 1))
     elif cfg['magscale'] != 'none':
         raise ValueError("Unknown magscale=%s" % cfg['magscale'])
+
+    # temporal difference, if any
+    if cfg['arch.timediff']:
+        layer = TimeDiffLayer(layer, delta=cfg['arch.timediff'])
 
     # standardization per frequency band
     if cfg.get('input_norm', 'batch') == 'batch':
