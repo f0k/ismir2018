@@ -270,6 +270,9 @@ def main():
     eta_decay_every = cfg.get('eta_decay_every', 1)
     patience = cfg.get('patience', 0)
     trials_of_patience = cfg.get('trials_of_patience', 1)
+    patience_criterion = cfg.get('patience_criterion',
+                                 'valid_loss' if options.validate
+                                 else 'train_loss')
     momentum = cfg['momentum']
     first_params = params[:cfg['first_params']]
     first_params_eta_scale = cfg['first_params_eta_scale']
@@ -367,10 +370,12 @@ def main():
 
         # update learning rate and/or apply early stopping, if needed
         if patience > 0:
-            if options.validate:
-                cur_error = val_err / len(filelist_val)
-            else:
+            if patience_criterion == 'train_loss':
                 cur_error = err / epochsize
+            elif patience_criterion == 'valid_loss':
+                cur_error = val_err / len(filelist_val)
+            elif patience_criterion == 'valid_error':
+                cur_error = 1 - results['accuracy']
             if cur_error <= best_error:
                 best_error = cur_error
                 best_state = get_state(network, updates)
