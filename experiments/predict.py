@@ -43,6 +43,9 @@ def opts_parser():
     parser.add_argument('--dataset',
             type=str, default='jamendo',
             help='Name of the dataset to use (default: %(default)s)')
+    parser.add_argument('--filelists',
+            type=str, default='valid,test',
+            help='Names of the filelists to use (default: %(default)s)')
     parser.add_argument('--pitchshift', metavar='PERCENT',
             type=float, default=0.0,
             help='Perform test-time pitch-shifting of given amount and '
@@ -106,10 +109,10 @@ def main():
                            os.path.pardir, 'datasets', options.dataset)
 
     # - load filelist
-    with io.open(os.path.join(datadir, 'filelists', 'valid')) as f:
-        filelist = [l.rstrip() for l in f if l.rstrip()]
-    with io.open(os.path.join(datadir, 'filelists', 'test')) as f:
-        filelist += [l.rstrip() for l in f if l.rstrip()]
+    filelist = []
+    for d in options.filelists.split(','):
+        with io.open(os.path.join(datadir, 'filelists', d)) as f:
+            filelist.extend(l.rstrip() for l in f if l.rstrip())
 
     # - create generator for spectra
     spects = (cached(options.cache_spectra and
