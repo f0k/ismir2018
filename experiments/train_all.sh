@@ -13,7 +13,7 @@ train_if_free() {
 	if [ ! -f "$modelfile" ] && [ ! -f "$modelfile.lock" ]; then
 		echo "$HOSTNAME: $THEANO_FLAGS" > "$modelfile.lock"
 		OMP_NUM_THREADS=1 ./train.py "$modelfile" --augment --cache=cache --load-spectra=memory --validate --save-errors "${@:2}"
-		./predict.py "$modelfile" "${modelfile%.npz}.pred.pkl" --cache=cache
+		OMP_NUM_THREADS=1 THEANO_FLAGS=allow_gc=1,dnn.conv.algo_fwd=guess_on_shape_change,dnn.conv.algo_bwd_data=guess_on_shape_change,dnn.conv.algo_bwd_filter=guess_on_shape_change,"$THEANO_FLAGS" ./predict.py "$modelfile" "${modelfile%.npz}.pred.pkl" --cache=cache
 		rm "$modelfile.lock"
 	fi
 }
