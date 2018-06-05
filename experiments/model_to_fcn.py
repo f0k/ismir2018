@@ -124,14 +124,22 @@ def model_to_fcn(output_layers, allow_unlink=False):
             # DenseLayer: Turn into Conv2DLayer/DilatedConv2DLayer if needed,
             # reset dilation factor
             dilation = dilations[layer.input_layer]
-            if getattr(layer, 'num_leading_axes', 1) == -1:
-                # special case: num_leading_axes=-1, no dilation needed
-                blocklen = 1
-            elif len(layer.input_shape) == 4:
-                blocklen = int(np.prod(layer.input_shape[1:])) // layer.input_shape[1] // layer.input_shape[-1]
+            if (dilation == 1 and
+                    (getattr(layer, 'num_leading_axes', 1) == -1 or
+                     len(layer.input_shape) == 2)):
+                # we can retain it as a DenseLayer
+                converted[layer] = DenseLayer(
+                        converted[layer.input_layer],
+                        num_units=layer.num_units, W=layer.W, b=layer.b,
+                        nonlinearity=layer.nonlinearity,
+                        num_leading_axes=layer.num_leading_axes)
             else:
-                blocklen = 1
-            if (blocklen > 1) or (dilation > 1):
+                if len(layer.input_shape) == 4:
+                    blocklen = int(np.prod(layer.input_shape[1:])) // layer.input_shape[1] // layer.input_shape[-1]
+                elif len(layer.input_shape) == 3:
+                    blocklen = int(np.prod(layer.input_shape[1:])) // layer.input_shape[1]
+                else:
+                    blocklen = 1
                 W = layer.W.get_value() if allow_unlink else layer.W
                 W = W.T.reshape((layer.num_units, layer.input_shape[1], blocklen, layer.input_shape[-1])).transpose(1, 0, 2, 3)
                 converted[layer] = DilatedConv2DLayer(
@@ -149,13 +157,6 @@ def model_to_fcn(output_layers, allow_unlink=False):
                         converted[layer])
                 converted[layer] = lasagne.layers.NonlinearityLayer(
                         converted[layer], layer.nonlinearity)
-                dilations[layer] = 1
-            else:
-                converted[layer] = DenseLayer(
-                        converted[layer.input_layer],
-                        num_units=layer.num_units, W=layer.W, b=layer.b,
-                        nonlinearity=layer.nonlinearity,
-                        num_leading_axes=layer.num_leading_axes)
             dilations[layer] = 1
 
         elif not isinstance(layer, MergeLayer):
