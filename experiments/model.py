@@ -95,6 +95,41 @@ class TimeDiffLayer(lasagne.layers.Layer):
         return input[:, :, self.delta:] - input[:, :, :-self.delta]
 
 
+class PCENLayer(lasagne.layers.Layer):
+    def __init__(self, incoming,
+                 log_s=lasagne.init.Constant(np.log(0.025)),
+                 log_alpha=lasagne.init.Constant(0),
+                 log_delta=lasagne.init.Constant(0),
+                 log_r=lasagne.init.Constant(0),
+                 eps=1e-6, **kwargs):
+        super(PCENLayer, self).__init__(incoming, **kwargs)
+        num_bands = self.input_shape[-1]
+        self.log_s = self.add_param(log_s, shape=(num_bands,),
+                                    name='log_s', regularizable=False)
+        self.log_alpha = self.add_param(log_alpha, shape=(num_bands,),
+                                        name='log_alpha', regularizable=False)
+        self.log_delta = self.add_param(log_delta, shape=(num_bands,),
+                                        name='log_delta', regularizable=False)
+        self.log_r = self.add_param(log_r, shape=(num_bands,),
+                                        name='log_r', regularizable=False)
+        self.eps = eps
+    def get_output_for(self, input, **kwargs):
+        def smooth_step(current_in, previous_out, s):
+            one = T.constant(1)
+            return [(one - s) * previous_out + s * current_in]
+        init = input[:, :, 0]  # start smoother from first frame
+        s = T.exp(self.log_s).dimshuffle('x', 'x', 0)
+        smoother = theano.scan(fn=smooth_step,
+                               sequences=[input.transpose(2, 0, 1, 3)],
+                               non_sequences=[s],
+                               outputs_info=[init],
+                               strict=True)[0].transpose(1, 2, 0, 3)
+        alpha = T.exp(self.log_alpha)
+        delta = T.exp(self.log_delta)
+        r = T.exp(self.log_r)
+        return (input / (self.eps + smoother)**alpha + delta)**r - delta**r
+
+
 def architecture(input_var, input_shape, cfg):
     layer = InputLayer(input_shape, input_var)
 
@@ -131,6 +166,10 @@ def architecture(input_var, input_shape, cfg):
         a = float(cfg['magscale'][len('pow_learn'):] or 0)
         a = T.nnet.sigmoid(theano.shared(lasagne.utils.floatX(a)))
         layer = PowLayer(layer, exponent=a)
+    elif cfg['magscale'] == 'pcen':
+        layer = PCENLayer(layer)
+        if cfg.get('pcen_fix_alpha'):
+            layer.params[layer.log_alpha].remove("trainable")
     elif cfg['magscale'] == 'loudness_only':
         # cut away half a block length on the left and right
         layer = lasagne.layers.SliceLayer(
