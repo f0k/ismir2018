@@ -210,6 +210,11 @@ def main():
             max_db = cfg['max_db']
             batches = augment.apply_random_filters(batches, mel_max, max_db)
 
+            # We apply random loudness changes
+            max_loudness = cfg['max_loudness']
+            if max_loudness:
+                batches = augment.apply_random_loudness(batches, max_loudness)
+
             return batches
 
         # We start the mini-batch generator and augmenter in one or more

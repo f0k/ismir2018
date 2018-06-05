@@ -191,6 +191,21 @@ def apply_random_filters(batches, max_freq, max_db, min_std=5, max_std=7):
         yield spects * filt[:, np.newaxis, :], labels
 
 
+def apply_random_loudness(batches, max_db):
+    """
+    Applies global loudness changes to linear-magnitude mel spectrograms,
+    randomly chosen between -/+ `max_db` decibel.
+    """
+    for spects, labels in batches:
+        batchsize, length, bins = spects.shape
+        # sample strengths uniformly in dB
+        strength = max_db * 2 * (np.random.rand(batchsize) - .5)
+        # transform from dB to factors
+        factors = 10**(strength / 20.)
+        # apply (multiply, broadcasting over all but the first axis)
+        yield spects * factors[:, np.newaxis, np.newaxis], labels
+
+
 def apply_znorm(batches, mean, istd):
     """
     Apply Z-scoring (subtract mean, multiply by inverse std deviation).
