@@ -12,8 +12,8 @@ train_if_free() {
 	echo "$modelfile"
 	if [ ! -f "$modelfile" ] && [ ! -f "$modelfile.lock" ]; then
 		echo "$HOSTNAME: $THEANO_FLAGS" > "$modelfile.lock"
-		OMP_NUM_THREADS=1 ./train.py "$modelfile" --augment --cache=cache --load-spectra=memory --validate --save-errors "${@:2}"
-		OMP_NUM_THREADS=1 THEANO_FLAGS=allow_gc=1,dnn.conv.algo_fwd=guess_on_shape_change,dnn.conv.algo_bwd_data=guess_on_shape_change,dnn.conv.algo_bwd_filter=guess_on_shape_change,"$THEANO_FLAGS" ./predict.py "$modelfile" "${modelfile%.npz}.pred.pkl" --cache=cache
+		OMP_NUM_THREADS=1 ./train.py "$modelfile" --dataset=lehner --augment --cache=cache --load-spectra=on-demand --var eta_decay=0.1 --var eta_decay_every=trial_of_patience --var patience=10 --var trials_of_patience=3 --var epochs=1000 --no-validate --save-errors "${@:2}"
+		OMP_NUM_THREADS=1 THEANO_FLAGS=allow_gc=1,dnn.conv.algo_fwd=guess_on_shape_change,dnn.conv.algo_bwd_data=guess_on_shape_change,dnn.conv.algo_bwd_filter=guess_on_shape_change,"$THEANO_FLAGS" ./predict.py "$modelfile" "${modelfile%.npz}.pred.pkl" --dataset=lehner --cache=cache
 		rm "$modelfile.lock"
 	fi
 }
@@ -27,34 +27,11 @@ train() {
 }
 
 
-mkdir -p spectlearn
-
-# starting point: nothing is learned
-train 5 spectlearn/allfixed_
-
-# learned magnitude transformations
-train 5 spectlearn/maglearn_log1p0_ --var magscale=log1p_learn --var first_params_log=50
-train 5 spectlearn/maglearn_log1p0_boost10_ --var magscale=log1p_learn --var first_params_log=50 --var first_params_eta_scale=10
-train 5 spectlearn/maglearn_log1p0_boost50_ --var magscale=log1p_learn --var first_params_log=50 --var first_params_eta_scale=50
-train 5 spectlearn/maglearn_log1p7_boost10_ --var magscale=log1p_learn7 --var first_params_log=50 --var first_params_eta_scale=10
-train 5 spectlearn/maglearn_log1p7_boost50_ --var magscale=log1p_learn7 --var first_params_log=50 --var first_params_eta_scale=50
-train 5 spectlearn/maglearn_pow_ --var magscale=pow_learn --var first_params_log=50
-train 5 spectlearn/maglearn_pow_boost10_ --var magscale=pow_learn --var first_params_log=50 --var first_params_eta_scale=10
-train 5 spectlearn/maglearn_pow_boost50_ --var magscale=pow_learn --var first_params_log=50 --var first_params_eta_scale=50
-
-# starting point 2: nothing is learned, but using the melbank layer
-# (which gives a slightly different filterbank, but should perform the same)
-train 5 spectlearn/allfixed2_ --var filterbank=mel_learn --var first_params_eta_scale=0
-
-# learned mel filterbanks
-train 5 spectlearn/mellearn_ --var filterbank=mel_learn --var first_params_log=50
-train 5 spectlearn/mellearn_boost10_ --var filterbank=mel_learn --var first_params_log=50 --var first_params_eta_scale=10
-train 5 spectlearn/mellearn_boost50_ --var filterbank=mel_learn --var first_params_log=50 --var first_params_eta_scale=50
-
-
-# dropout variants
-mkdir -p dropout
-train 5 dropout/channels_ --var arch.convdrop=channels
-train 5 dropout/bands_ --var arch.convdrop=bands
-train 5 dropout/independent_ --var arch.convdrop=independent
-
+mkdir -p ismir2018
+train 5 ismir2018/baseline_
+train 5 ismir2018/loudaugment_ --var max_loud=10
+train 5 ismir2018/instnorm_ --var input_norm=instance
+train 5 ismir2018/timediff_ --var arch.timediff=1
+train 5 ismir2018/convzeromean_ --var arch.firstconv_zeromean=params
+#train 5 ismir2018/pcen_ --var magscale=pcen
+train 5 ismir2018/pcenfixalpha_ --var magscale=pcen --var pcen_fix_alpha=1
