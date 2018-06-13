@@ -32,6 +32,10 @@ def opts_parser():
     parser.add_argument('--plot',
             action='store_true',
             help='If given, saves a histogram plot next to each input file.')
+    parser.add_argument('--plot-data',
+            action='store_true',
+            help='If given along with --plot, saves the histogram values next '
+                 'to each plot.')
     parser.add_argument('--smooth-width', metavar='WIDTH',
             type=int, default=0,
             help='Optionally apply temporal median smoothing over WIDTH frames '
@@ -75,7 +79,7 @@ def main():
         inp_train = np.concatenate(inp[splits['train']])
         thr = .5 * (inp_train.min() + inp_train.max())
         thr = scipy.optimize.fmin(error, thr, args=(inp_train, targets_train),
-                                  disp=False)
+                                  disp=False)[0]
         print("threshold: %f" % thr)
         for part in 'train', 'valid', 'test':
             print("%s err: %.4g" %
@@ -101,6 +105,9 @@ def main():
             negvals, _, _ = plt.hist(inp_train[~targets_train], bins, alpha=.8)
             plt.axvline(thr, linestyle=':', color='r')
             plt.savefig(inputfile[:-3] + 'png')
+            if options.plot_data:
+                np.savez(inputfile[:-3] + 'hist.npz', bins=bins, thr=thr,
+                         posvals=posvals, negvals=negvals)
 
 
 if __name__=="__main__":
